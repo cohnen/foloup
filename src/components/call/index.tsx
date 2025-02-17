@@ -48,7 +48,7 @@ type registerCallResponseType = {
   data: {
     registerCallResponse: {
       call_id: string;
-      sample_rate: number;
+      access_token: string;
     };
   };
 };
@@ -135,64 +135,52 @@ function Call({ interview }: InterviewProps) {
   }, [email]);
 
   useEffect(() => {
-    // Setup WebSocket event listeners
-    const setupWebClient = () => {
-      webClient.on("call_started", () => {
-        console.log("Call started");
-        setIsCalling(true);
-      });
+    webClient.on("call_started", () => {
+      console.log("Call started");
+      setIsCalling(true);
+    });
 
-      webClient.on("audio", (audio: Float32Array) => {
-        console.log("Received audio chunk of size:", audio.length);
-      });
+    webClient.on("call_ended", () => {
+      console.log("Call ended");
+      setIsCalling(false);
+      setIsEnded(true);
+    });
 
-      webClient.on("call_ended", () => {
-        console.log("Call ended");
-        setIsCalling(false);
-        setIsEnded(true);
-      });
+    webClient.on("agent_start_talking", () => {
+      setActiveTurn("agent");
+    });
 
-      webClient.on("agent_start_talking", () => {
-        setActiveTurn("agent");
-      });
+    webClient.on("agent_stop_talking", () => {
+      // Optional: Add any logic when agent stops talking
+      setActiveTurn("user");
+    });
 
-      webClient.on("agent_stop_talking", () => {
-        setActiveTurn("user");
-      });
+    webClient.on("error", (error) => {
+      console.error("An error occurred:", error);
+      webClient.stopCall();
+      setIsEnded(true);
+      setIsCalling(false);
+    });
 
-      webClient.on("error", (error) => {
-        console.error("WebClient error:", error);
-        setIsCalling(false);
-        setIsEnded(true);
-        toast.error("An error occurred during the call. Please try again.");
-      });
+    webClient.on("update", (update) => {
+      if (update.transcript) {
+        const transcripts: transcriptType[] = update.transcript;
+        const roleContents: { [key: string]: string } = {};
 
-      webClient.on("update", (update) => {
-        if (update.transcript) {
-          const roleContents: { [key: string]: string } = {};
-          update.transcript.forEach((transcript) => {
-            roleContents[transcript?.role] = transcript?.content;
-          });
+        transcripts.forEach((transcript) => {
+          roleContents[transcript?.role] = transcript?.content;
+        });
 
-          setLastInterviewerResponse(roleContents["agent"] || "");
-          setLastUserResponse(roleContents["user"] || "");
-        }
-      });
-    };
-
-    setupWebClient();
-
-    // Cleanup function
-    return () => {
-      if (webClient) {
-        try {
-          webClient.stopCall();
-        } catch (error) {
-          console.error("Error cleaning up WebSocket:", error);
-        }
+        setLastInterviewerResponse(roleContents["agent"]);
+        setLastUserResponse(roleContents["user"]);
       }
+      //TODO: highlight the newly uttered word in the UI
+    });
+    return () => {
+      // Clean up event listeners
+      webClient.removeAllListeners();
     };
-  }, []); // Empty dependency array since we only want to set up once
+  }, []);
 
   const onEndCallClick = async () => {
     if (isStarted) {
@@ -215,12 +203,40 @@ function Call({ interview }: InterviewProps) {
       };
       setLoading(true);
 
-      // Request microphone access first and keep the stream
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!stream) {
-        toast.error("Microphone access is required for the interview");
-        setLoading(false);
-        return;
+    const oldUserEmails: string[] = (
+      await ResponseService.getAllEmails(interview.id)
+    ).map((item) => item.email);
+    const OldUser =
+      oldUserEmails.includes(email) ||
+      (interview?.respondents && !interview?.respondents.includes(email));
+
+    if (OldUser) {
+      setIsOldUser(true);
+    } else {
+      const registerCallResponse: registerCallResponseType = await axios.post(
+        "/api/register-call",
+        { dynamic_data: data, interviewer_id: interview?.interviewer_id },
+      );
+      if (registerCallResponse.data.registerCallResponse.access_token) {
+        await webClient
+          .startCall({
+            accessToken:
+              registerCallResponse.data.registerCallResponse.access_token,
+          })
+          .catch(console.error);
+        setIsCalling(true);
+        setIsStarted(true);
+
+        setCallId(registerCallResponse?.data?.registerCallResponse?.call_id);
+
+        const response = await createResponse({
+          interview_id: interview.id,
+          call_id: registerCallResponse.data.registerCallResponse.call_id,
+          email: email,
+          name: name,
+        });
+      } else {
+        console.log("Failed to register call");
       }
 
       const oldUserEmails: string[] = (
