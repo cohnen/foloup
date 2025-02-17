@@ -13,15 +13,15 @@ import { usePathname } from "next/navigation";
 const inter = Inter({ subsets: ["latin"] });
 
 const metadata = {
-  title: "FoloUp",
+  title: "ixigo AI interviews",
   description: " AI-powered Interviews",
   openGraph: {
-    title: "FoloUp",
+    title: "ixigo AI interviews",
     description: "AI-powered Interviews",
-    siteName: "FoloUp",
+    siteName: "ixigo AI interviews",
     images: [
       {
-        url: "/foloup.png",
+        url: "https://edge.ixigo.com/st/voice/_next/static/media/ixigo-ai-logo.70ec8b55.svg",
         width: 800,
         height: 600,
       },

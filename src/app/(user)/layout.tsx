@@ -8,15 +8,15 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FoloUp",
+  title: "ixigo AI Interviews",
   description: "AI powered Interviews",
   openGraph: {
-    title: "FoloUp",
+    title: "ixigo AI Interviews",
     description: "AI-powered Interviews",
-    siteName: "FoloUp",
+    siteName: "ixigo AI Interviews",
     images: [
       {
-        url: "/foloup.png",
+        url: "https://edge.ixigo.com/st/voice/_next/static/media/ixigo-ai-logo.70ec8b55.svg",
         width: 800,
         height: 600,
       },

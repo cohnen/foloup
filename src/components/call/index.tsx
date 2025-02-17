@@ -116,12 +116,11 @@ function Call({ interview }: InterviewProps) {
   useEffect(() => {
     let intervalId: any;
     if (isCalling) {
-      // setting time from 0 to 1 every 10 milisecond using javascript setInterval method
       intervalId = setInterval(() => setTime(time + 1), 10);
     }
     setCurrentTimeDuration(String(Math.floor(time / 100)));
     if (Number(currentTimeDuration) == Number(interviewTimeDuration) * 60) {
-      webClient.stopConversation();
+      webClient.stopCall();
       setIsEnded(true);
     }
 
@@ -136,52 +135,69 @@ function Call({ interview }: InterviewProps) {
   }, [email]);
 
   useEffect(() => {
-    webClient.on("conversationStarted", () => {
-      console.log("conversationStarted");
-    });
+    // Setup WebSocket event listeners
+    const setupWebClient = () => {
+      webClient.on("call_started", () => {
+        console.log("Call started");
+        setIsCalling(true);
+      });
 
-    webClient.on("audio", (audio: Uint8Array) => {
-      console.log("There is audio");
-    });
+      webClient.on("audio", (audio: Float32Array) => {
+        console.log("Received audio chunk of size:", audio.length);
+      });
 
-    webClient.on("conversationEnded", ({ code, reason }) => {
-      console.log("Closed with code:", code, ", reason:", reason);
-      setIsCalling(false);
-      setIsEnded(true);
-    });
+      webClient.on("call_ended", () => {
+        console.log("Call ended");
+        setIsCalling(false);
+        setIsEnded(true);
+      });
 
-    webClient.on("error", (error) => {
-      console.error("An error occurred:", error);
-      setIsCalling(false);
-      setIsEnded(true);
-    });
-
-    webClient.on("update", (update) => {
-      const roleContents: { [key: string]: string } = {};
-      if (update.turntaking === "agent_turn") {
+      webClient.on("agent_start_talking", () => {
         setActiveTurn("agent");
-      } else if (update.turntaking === "user_turn") {
+      });
+
+      webClient.on("agent_stop_talking", () => {
         setActiveTurn("user");
+      });
+
+      webClient.on("error", (error) => {
+        console.error("WebClient error:", error);
+        setIsCalling(false);
+        setIsEnded(true);
+        toast.error("An error occurred during the call. Please try again.");
+      });
+
+      webClient.on("update", (update) => {
+        if (update.transcript) {
+          const roleContents: { [key: string]: string } = {};
+          update.transcript.forEach((transcript) => {
+            roleContents[transcript?.role] = transcript?.content;
+          });
+
+          setLastInterviewerResponse(roleContents["agent"] || "");
+          setLastUserResponse(roleContents["user"] || "");
+        }
+      });
+    };
+
+    setupWebClient();
+
+    // Cleanup function
+    return () => {
+      if (webClient) {
+        try {
+          webClient.stopCall();
+        } catch (error) {
+          console.error("Error cleaning up WebSocket:", error);
+        }
       }
-
-      if (update.transcript) {
-        const transcripts: transcriptType[] = update.transcript;
-
-        transcripts.forEach((transcript) => {
-          roleContents[transcript?.role] = transcript?.content;
-        });
-
-        setLastInterviewerResponse(roleContents["agent"]);
-        setLastUserResponse(roleContents["user"]);
-      }
-      //TODO: highlight the newly uttered word in the UI
-    });
-  }, []);
+    };
+  }, []); // Empty dependency array since we only want to set up once
 
   const onEndCallClick = async () => {
     if (isStarted) {
       setLoading(true);
-      webClient.stopConversation();
+      webClient.stopCall();
       setIsEnded(true);
       setLoading(false);
     } else {
@@ -190,52 +206,64 @@ function Call({ interview }: InterviewProps) {
   };
 
   const startConversation = async () => {
-    const data = {
-      mins: interview?.time_duration,
-      objective: interview?.objective,
-      questions: interview?.questions.map((q) => q.question).join(", "),
-      name: name || "not provided",
-    };
-    setLoading(true);
+    try {
+      const data = {
+        mins: interview?.time_duration,
+        objective: interview?.objective,
+        questions: interview?.questions.map((q) => q.question).join(", "),
+        name: name || "not provided",
+      };
+      setLoading(true);
 
-    const oldUserEmails: string[] = (
-      await ResponseService.getAllEmails(interview.id)
-    ).map((item) => item.email);
-    const OldUser =
-      oldUserEmails.includes(email) ||
-      (interview?.respondents && !interview?.respondents.includes(email));
-
-    if (OldUser) {
-      setIsOldUser(true);
-    } else {
-      const registerCallResponse: registerCallResponseType = await axios.post(
-        "/api/register-call",
-        { dynamic_data: data, interviewer_id: interview?.interviewer_id },
-      );
-      if (registerCallResponse.data.registerCallResponse.call_id) {
-        webClient
-          .startConversation({
-            callId: registerCallResponse.data.registerCallResponse.call_id,
-            sampleRate:
-              registerCallResponse.data.registerCallResponse.sample_rate,
-            enableUpdate: true,
-          })
-          .catch(console.error);
-        setIsCalling(true);
-        setIsStarted(true);
-
-        setCallId(registerCallResponse?.data?.registerCallResponse?.call_id);
-
-        const response = await createResponse({
-          interview_id: interview.id,
-          call_id: registerCallResponse.data.registerCallResponse.call_id,
-          email: email,
-          name: name,
-        });
+      // Request microphone access first and keep the stream
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!stream) {
+        toast.error("Microphone access is required for the interview");
+        setLoading(false);
+        return;
       }
-    }
 
-    setLoading(false);
+      const oldUserEmails: string[] = (
+        await ResponseService.getAllEmails(interview.id)
+      ).map((item) => item.email);
+      const OldUser =
+        oldUserEmails.includes(email) ||
+        (interview?.respondents && !interview?.respondents.includes(email));
+
+      if (OldUser) {
+        setIsOldUser(true);
+        // Make sure to stop the audio stream
+        stream.getTracks().forEach(track => track.stop());
+      } else {
+        const registerCallResponse = await axios.post(
+          "/api/register-call",
+          { dynamic_data: data, interviewer_id: interview?.interviewer_id },
+        );
+        
+        if (registerCallResponse.data.registerCallResponse.access_token) {
+          console.log("Starting call with access token");
+          
+          await webClient.startCall({
+            accessToken: registerCallResponse.data.registerCallResponse.access_token,
+          });
+
+          setCallId(registerCallResponse.data.registerCallResponse.call_id);
+          setIsStarted(true);
+
+          await createResponse({
+            interview_id: interview.id,
+            call_id: registerCallResponse.data.registerCallResponse.call_id,
+            email: email,
+            name: name,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error starting conversation:", error);
+      toast.error("Failed to start interview. Please check your microphone access and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -552,14 +580,13 @@ function Call({ interview }: InterviewProps) {
         </Card>
         <a
           className="flex flex-row justify-center align-middle mt-3"
-          href="https://folo-up.co/"
+          href="https://ai.ixigo.com"
           target="_blank"
         >
           <div className="text-center text-md font-semibold mr-2  ">
-            Powered by{" "}
-            <span className="font-bold">
-              Folo<span className="text-indigo-600">Up</span>
-            </span>
+          Powered by{" "}
+          <div><img alt="logo" loading="lazy" width="98" height="48" decoding="async" data-nimg="1" src="https://edge.ixigo.com/st/voice/_next/static/media/ixigo-ai-logo.70ec8b55.svg"/><span>Travel AI</span></div>
+       
           </div>
           <ArrowUpRightSquareIcon className="h-[1.5rem] w-[1.5rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-indigo-500 " />
         </a>
