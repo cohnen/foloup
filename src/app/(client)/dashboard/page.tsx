@@ -110,7 +110,7 @@ function Interviews() {
           My Interviews
         </h2>
         <h3 className=" text-sm tracking-tight text-gray-600 font-medium ">
-          Start getting responses now!
+          Start getting interview responses now!
         </h3>
         <div className="relative flex items-center mt-1 flex-wrap">
           {currentPlan == "free_trial_over" ? (
