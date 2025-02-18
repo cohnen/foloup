@@ -116,6 +116,7 @@ function Call({ interview }: InterviewProps) {
   useEffect(() => {
     let intervalId: any;
     if (isCalling) {
+      // setting time from 0 to 1 every 10 milisecond using javascript setInterval method
       intervalId = setInterval(() => setTime(time + 1), 10);
     }
     setCurrentTimeDuration(String(Math.floor(time / 100)));
@@ -194,14 +195,13 @@ function Call({ interview }: InterviewProps) {
   };
 
   const startConversation = async () => {
-    try {
-      const data = {
-        mins: interview?.time_duration,
-        objective: interview?.objective,
-        questions: interview?.questions.map((q) => q.question).join(", "),
-        name: name || "not provided",
-      };
-      setLoading(true);
+    const data = {
+      mins: interview?.time_duration,
+      objective: interview?.objective,
+      questions: interview?.questions.map((q) => q.question).join(", "),
+      name: name || "not provided",
+    };
+    setLoading(true);
 
     const oldUserEmails: string[] = (
       await ResponseService.getAllEmails(interview.id)
@@ -238,48 +238,9 @@ function Call({ interview }: InterviewProps) {
       } else {
         console.log("Failed to register call");
       }
-
-      const oldUserEmails: string[] = (
-        await ResponseService.getAllEmails(interview.id)
-      ).map((item) => item.email);
-      const OldUser =
-        oldUserEmails.includes(email) ||
-        (interview?.respondents && !interview?.respondents.includes(email));
-
-      if (OldUser) {
-        setIsOldUser(true);
-        // Make sure to stop the audio stream
-        stream.getTracks().forEach(track => track.stop());
-      } else {
-        const registerCallResponse = await axios.post(
-          "/api/register-call",
-          { dynamic_data: data, interviewer_id: interview?.interviewer_id },
-        );
-        
-        if (registerCallResponse.data.registerCallResponse.access_token) {
-          console.log("Starting call with access token");
-          
-          await webClient.startCall({
-            accessToken: registerCallResponse.data.registerCallResponse.access_token,
-          });
-
-          setCallId(registerCallResponse.data.registerCallResponse.call_id);
-          setIsStarted(true);
-
-          await createResponse({
-            interview_id: interview.id,
-            call_id: registerCallResponse.data.registerCallResponse.call_id,
-            email: email,
-            name: name,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error starting conversation:", error);
-      toast.error("Failed to start interview. Please check your microphone access and try again.");
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -596,7 +557,7 @@ function Call({ interview }: InterviewProps) {
         </Card>
         <a
           className="flex flex-row justify-center align-middle mt-3"
-          href="https://ai.ixigo.com"
+          href="https://folo-up.co/"
           target="_blank"
         >
           <div className="text-center text-md font-semibold mr-2  ">
