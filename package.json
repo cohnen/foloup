@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "vercel-build": "next build"
   },
   "dependencies": {
     "@clerk/clerk-js": "^4.65.5",
@@ -54,7 +55,7 @@
     "marked": "^13.0.3",
     "md5": "^2.3.0",
     "nanoid": "^5.0.4",
-    "next": "^14.2.4",
+    "next": "14.2.4",
     "next-themes": "^0.2.1",
     "openai": "^4.6.0",
     "pdf-parse": "^1.1.1",
