@@ -560,10 +560,17 @@ function Call({ interview }: InterviewProps) {
           href="https://folo-up.co/"
           target="_blank"
         >
-          <div className="text-center text-md font-semibold mr-2  ">
-          Powered by{" "}
-          <div><img alt="logo" loading="lazy" width="98" height="48" decoding="async" data-nimg="1" src="https://edge.ixigo.com/st/voice/_next/static/media/ixigo-ai-logo.70ec8b55.svg"/><span>Travel AI</span></div>
-       
+          <div className="text-center text-md font-semibold mr-2">
+            Powered by{" "}
+            <div>
+              <Image
+                src="https://edge.ixigo.com/st/voice/_next/static/media/ixigo-ai-logo.70ec8b55.svg"
+                alt="logo"
+                width={98}
+                height={48}
+              />
+              <span>Travel AI</span>
+            </div>
           </div>
           <ArrowUpRightSquareIcon className="h-[1.5rem] w-[1.5rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-indigo-500 " />
         </a>

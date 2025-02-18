@@ -15,6 +15,11 @@ const nextConfig = {
         protocol: "https",
         hostname: "img.clerk.com",
       },
+      {
+        protocol: "https",
+        hostname: "edge.ixigo.com",
+        pathname: '/st/voice/**',
+      },
     ],
   },
   webpack: (webpackConfig, { webpack }) => {
