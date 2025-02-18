@@ -13,8 +13,9 @@ function Navbar() {
               <Image 
                 src="https://edge.ixigo.com/st/voice/_next/static/media/ixigo-ai-logo.70ec8b55.svg" 
                 alt="logo"
-                width={82}
-                height={40}
+                width={70}
+                height={35}
+                className="object-contain"
               />
             </p>
           </Link>

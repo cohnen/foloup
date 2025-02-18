@@ -28,7 +28,7 @@ export async function GET(res: NextRequest) {
     // Create Lisa
     const newFirstAgent = await retellClient.agent.create({
       response_engine: { llm_id: newModel.llm_id, type: "retell-llm" },
-      voice_id: "11labs-Chloe",
+      voice_id: "11labs-Monika",
       agent_name: "Lisa",
     });
 
