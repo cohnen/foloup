@@ -1,6 +1,7 @@
 import Link from "next/link";
 import React from "react";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+import Image from "next/image";
 
 function Navbar() {
   return (
@@ -9,7 +10,12 @@ function Navbar() {
         <div className="flex flex-row gap-3 justify-center">
           <Link href={"/dashboard"} className="flex items-center gap-2">
             <p className="px-2 py-1 text-2xl font-bold text-black">
-             <img src="https://edge.ixigo.com/st/voice/_next/static/media/ixigo-ai-logo.70ec8b55.svg" alt="logo"/>
+              <Image 
+                src="https://edge.ixigo.com/st/voice/_next/static/media/ixigo-ai-logo.70ec8b55.svg" 
+                alt="logo"
+                width={100}
+                height={40}
+              />
             </p>
           </Link>
           <p className="my-auto text-xl">/</p>
